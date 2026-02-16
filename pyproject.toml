@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dnd-cli"
+version = "0.1.0"
+description = "A terminal-based party RPG MVP"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "textual>=0.58.1,<1.0.0",
+]
+
+[project.scripts]
+cryptclash = "dnd_cli.main:run"
+"crypt-clash" = "dnd_cli.main:run"
+dnd = "dnd_cli.main:run"
+DND = "dnd_cli.main:run"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
