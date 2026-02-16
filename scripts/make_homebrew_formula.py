@@ -4,7 +4,6 @@ from __future__ import annotations
 import argparse
 import hashlib
 import sys
-import textwrap
 import urllib.request
 
 
@@ -19,33 +18,38 @@ def _sha256_of_url(url: str) -> str:
         return h.hexdigest()
 
 
-def _render_formula(*, org: str, repo: str, tag: str, sha256: str, python_dep: str) -> str:
+def _render_formula(
+    *, org: str, repo: str, tag: str, sha256: str, python_dep: str, license_name: str
+) -> str:
     homepage = f"https://github.com/{org}/{repo}"
     url = f"https://github.com/{org}/{repo}/archive/refs/tags/{tag}.tar.gz"
-    return textwrap.dedent(
-        f"""\
-        class CryptClash < Formula
-          include Language::Python::Virtualenv
-
-          desc "Terminal RPG adventure game"
-          homepage "{homepage}"
-          url "{url}"
-          sha256 "{sha256}"
-          license "MIT"
-
-          depends_on "{python_dep}"
-
-          def install
-            virtualenv_install_with_resources
-          end
-
-          test do
-            output = shell_output("#{{bin}}/cryptclash tip")
-            assert_match "Tip:", output
-          end
-        end
-        """
-    )
+    lines: list[str] = [
+        "class CryptClash < Formula",
+        "  include Language::Python::Virtualenv",
+        "",
+        '  desc "Terminal RPG adventure game"',
+        f'  homepage "{homepage}"',
+        f'  url "{url}"',
+        f'  sha256 "{sha256}"',
+    ]
+    if license_name:
+        lines.append(f'  license "{license_name}"')
+    lines += [
+        "",
+        f'  depends_on "{python_dep}"',
+        "",
+        "  def install",
+        "    virtualenv_install_with_resources",
+        "  end",
+        "",
+        "  test do",
+        '    output = shell_output("#{bin}/cryptclash tip")',
+        '    assert_match "Tip:", output',
+        "  end",
+        "end",
+        "",
+    ]
+    return "\n".join(lines)
 
 
 def main(argv: list[str]) -> int:
@@ -71,6 +75,11 @@ def main(argv: list[str]) -> int:
         default="",
         help="Write formula to a file path (otherwise prints to stdout).",
     )
+    p.add_argument(
+        "--license",
+        default="",
+        help='Optional SPDX license identifier (e.g. "MIT"). If omitted, no license field is set.',
+    )
     args = p.parse_args(argv)
 
     url = f"https://github.com/{args.org}/{args.repo}/archive/refs/tags/{args.tag}.tar.gz"
@@ -82,6 +91,7 @@ def main(argv: list[str]) -> int:
         tag=args.tag,
         sha256=sha256,
         python_dep=args.python_dep,
+        license_name=args.license.strip(),
     )
 
     if args.out:
@@ -95,4 +105,3 @@ def main(argv: list[str]) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main(sys.argv[1:]))
-
