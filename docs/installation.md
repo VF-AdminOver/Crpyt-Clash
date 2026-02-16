@@ -22,9 +22,15 @@ cryptclash
 After you publish a Homebrew tap (see `/Users/brianvassell/DND-cli/docs/homebrew-tap.md`), players can run:
 
 ```bash
-brew tap <ORG>/games
+brew tap VF-AdminOver/games
 brew install crypt-clash
 cryptclash
+```
+
+Or as a single command:
+
+```bash
+brew install vf-adminover/games/crypt-clash && cryptclash
 ```
 
 ## One-command install (macOS/Linux)
@@ -32,7 +38,7 @@ cryptclash
 If you host this repo on GitHub, players can run:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/<ORG>/<REPO>/main/scripts/install.sh | bash -s -- --repo https://github.com/<ORG>/<REPO>.git
+curl -fsSL https://raw.githubusercontent.com/VF-AdminOver/Crpyt-Clash/main/scripts/install.sh | bash -s -- --repo https://github.com/VF-AdminOver/Crpyt-Clash.git
 cryptclash
 ```
 

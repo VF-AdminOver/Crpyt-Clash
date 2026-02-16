@@ -68,6 +68,13 @@ If you want the sha256 computed automatically, use:
 python3 /Users/brianvassell/DND-cli/scripts/make_homebrew_formula.py --org <ORG> --repo <REPO> --tag v0.2.0 --out Formula/crypt-clash.rb
 ```
 
+Important: Homebrew does not automatically install `pyproject.toml` dependencies into the virtualenv. You must vendor
+Python deps (like `textual`) as `resource` blocks in the formula. The easiest way is:
+
+```bash
+brew update-python-resources --print-only --ignore-non-pypi-packages <ORG>/<TAP>/crypt-clash
+```
+
 Starter formula:
 
 ```ruby

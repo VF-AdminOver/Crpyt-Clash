@@ -30,7 +30,7 @@ cryptclash
 If you're publishing this repo publicly, you can also let players run the installer script:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/<ORG>/<REPO>/main/scripts/install.sh | bash -s -- --repo https://github.com/<ORG>/<REPO>.git
+curl -fsSL https://raw.githubusercontent.com/VF-AdminOver/Crpyt-Clash/main/scripts/install.sh | bash -s -- --repo https://github.com/VF-AdminOver/Crpyt-Clash.git
 cryptclash
 ```
 
@@ -39,9 +39,15 @@ cryptclash
 Once you publish a Homebrew tap, players can install with:
 
 ```bash
-brew tap <ORG>/games
+brew tap VF-AdminOver/games
 brew install crypt-clash
 cryptclash
+```
+
+Single command (no separate tap step):
+
+```bash
+brew install vf-adminover/games/crypt-clash && cryptclash
 ```
 
 Primary command is `cryptclash` (alias: `crypt-clash`). Legacy aliases `DND` / `dnd` remain for compatibility.

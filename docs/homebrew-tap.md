@@ -3,7 +3,7 @@
 This guide makes your game installable via:
 
 ```bash
-brew tap <ORG>/games
+brew tap VF-AdminOver/games
 brew install crypt-clash
 cryptclash
 ```
@@ -24,7 +24,7 @@ On GitHub, create a new public repo under your org/user:
 Clone it:
 
 ```bash
-git clone https://github.com/<ORG>/homebrew-games.git
+git clone https://github.com/VF-AdminOver/homebrew-games.git
 cd homebrew-games
 mkdir -p Formula
 ```
@@ -44,7 +44,7 @@ git push --tags
 
 GitHub automatically serves a stable source tarball at:
 
-- `https://github.com/<ORG>/<REPO>/archive/refs/tags/v0.1.0.tar.gz`
+- `https://github.com/VF-AdminOver/Crpyt-Clash/archive/refs/tags/v0.1.0.tar.gz`
 
 Tip: if your system Python blocks `pip install` (PEP 668), use a venv for build tooling:
 
@@ -61,13 +61,28 @@ From this repo (`/Users/brianvassell/DND-cli`), generate `Formula/crypt-clash.rb
 
 ```bash
 python3 /Users/brianvassell/DND-cli/scripts/make_homebrew_formula.py \
-  --org <ORG> \
-  --repo <REPO> \
+  --org VF-AdminOver \
+  --repo Crpyt-Clash \
   --tag v0.1.0 \
   --out Formula/crypt-clash.rb
 ```
 
 That script downloads the tag tarball and computes the `sha256` automatically.
+
+### Important: vendor Python dependencies (Textual)
+
+Homebrew does **not** automatically install your Python dependencies from `pyproject.toml`.
+Your formula must include `resource` blocks for dependencies like `textual`, or the game will crash with
+`ModuleNotFoundError: No module named 'textual'`.
+
+After you push the initial formula to your tap, run this (it prints resource blocks to paste into the formula):
+
+```bash
+brew tap VF-AdminOver/games https://github.com/VF-AdminOver/homebrew-games
+brew update-python-resources --print-only --ignore-non-pypi-packages vf-adminover/games/crypt-clash
+```
+
+Copy the printed `resource` blocks into `Formula/crypt-clash.rb`, commit, and push.
 
 Commit + push from inside the tap repo:
 
@@ -82,7 +97,7 @@ git push
 On a clean machine (or after uninstalling old installs), run:
 
 ```bash
-brew tap <ORG>/games https://github.com/<ORG>/homebrew-games
+brew tap VF-AdminOver/games https://github.com/VF-AdminOver/homebrew-games
 brew install crypt-clash
 cryptclash tip
 cryptclash
