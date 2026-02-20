@@ -8,6 +8,7 @@ Use:
 
 - `cryptclash` (primary)
 - `crypt-clash` (alias)
+- Homebrew formula: `dnd`
 
 Legacy aliases (`dnd`, `DND`) can remain temporarily for compatibility.
 
@@ -23,7 +24,7 @@ Recommended setup:
 
 ```bash
 brew tap cryptclash/games
-brew install crypt-clash
+brew install dnd
 ```
 
 This avoids personal-name commands like `yourname/tap`.
@@ -60,25 +61,25 @@ Publish a GitHub release (for example `v0.2.0`) and attach source tarball.
 
 File path in tap repo:
 
-`Formula/crypt-clash.rb`
+`Formula/dnd.rb`
 
 If you want the sha256 computed automatically, use:
 
 ```bash
-python3 /Users/brianvassell/DND-cli/scripts/make_homebrew_formula.py --org <ORG> --repo <REPO> --tag v0.2.0 --out Formula/crypt-clash.rb
+python3 /Users/brianvassell/DND-cli/scripts/make_homebrew_formula.py --org <ORG> --repo <REPO> --tag v0.2.0 --formula-name dnd --out Formula/dnd.rb
 ```
 
 Important: Homebrew does not automatically install `pyproject.toml` dependencies into the virtualenv. You must vendor
 Python deps (like `textual`) as `resource` blocks in the formula. The easiest way is:
 
 ```bash
-brew update-python-resources --print-only --ignore-non-pypi-packages <ORG>/<TAP>/crypt-clash
+brew update-python-resources --print-only --ignore-non-pypi-packages <ORG>/<TAP>/dnd
 ```
 
 Starter formula:
 
 ```ruby
-class CryptClash < Formula
+class Dnd < Formula
   include Language::Python::Virtualenv
 
   desc "Terminal RPG adventure game"
@@ -104,7 +105,7 @@ end
 
 ```bash
 brew tap cryptclash/games
-brew install crypt-clash
+brew install dnd
 ```
 
 ## 4) User run
@@ -118,6 +119,6 @@ cryptclash
 - Avoid brand names that may conflict with existing marks in package/formula names.
 - Keep repo/formula/command aligned on neutral branding:
   - repo: `crypt-clash-cli`
-  - formula: `crypt-clash`
+  - formula: `dnd`
   - command: `cryptclash`
 - Keep legacy aliases only for migration, then remove in a major release.

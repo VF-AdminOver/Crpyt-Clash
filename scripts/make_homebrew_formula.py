@@ -19,12 +19,20 @@ def _sha256_of_url(url: str) -> str:
 
 
 def _render_formula(
-    *, org: str, repo: str, tag: str, sha256: str, python_dep: str, license_name: str
+    *,
+    org: str,
+    repo: str,
+    tag: str,
+    sha256: str,
+    python_dep: str,
+    license_name: str,
+    class_name: str,
+    test_command: str,
 ) -> str:
     homepage = f"https://github.com/{org}/{repo}"
     url = f"https://github.com/{org}/{repo}/archive/refs/tags/{tag}.tar.gz"
     lines: list[str] = [
-        "class CryptClash < Formula",
+        f"class {class_name} < Formula",
         "  include Language::Python::Virtualenv",
         "",
         '  desc "Terminal RPG adventure game"',
@@ -43,7 +51,7 @@ def _render_formula(
         "  end",
         "",
         "  test do",
-        '    output = shell_output("#{bin}/cryptclash tip")',
+        f'    output = shell_output("#{{bin}}/{test_command} tip")',
         '    assert_match "Tip:", output',
         "  end",
         "end",
@@ -80,10 +88,22 @@ def main(argv: list[str]) -> int:
         default="",
         help='Optional SPDX license identifier (e.g. "MIT"). If omitted, no license field is set.',
     )
+    p.add_argument(
+        "--formula-name",
+        default="crypt-clash",
+        help='Formula file name without ".rb" (e.g. "crypt-clash" or "dnd").',
+    )
+    p.add_argument(
+        "--command-name",
+        default="cryptclash",
+        help='Executable command used in formula test (e.g. "cryptclash").',
+    )
     args = p.parse_args(argv)
 
     url = f"https://github.com/{args.org}/{args.repo}/archive/refs/tags/{args.tag}.tar.gz"
     sha256 = args.sha256.strip() or _sha256_of_url(url)
+
+    class_name = "".join(part.capitalize() for part in args.formula_name.replace("_", "-").split("-"))
 
     formula = _render_formula(
         org=args.org,
@@ -92,10 +112,13 @@ def main(argv: list[str]) -> int:
         sha256=sha256,
         python_dep=args.python_dep,
         license_name=args.license.strip(),
+        class_name=class_name,
+        test_command=args.command_name.strip(),
     )
 
     if args.out:
-        with open(args.out, "w", encoding="utf-8") as f:
+        out_path = args.out.strip()
+        with open(out_path, "w", encoding="utf-8") as f:
             f.write(formula)
         return 0
 

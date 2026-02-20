@@ -23,14 +23,14 @@ After you publish a Homebrew tap (see `/Users/brianvassell/DND-cli/docs/homebrew
 
 ```bash
 brew tap VF-AdminOver/games
-brew install crypt-clash
+brew install dnd
 cryptclash
 ```
 
 Or as a single command:
 
 ```bash
-brew install vf-adminover/games/crypt-clash && cryptclash
+brew install vf-adminover/games/dnd && cryptclash
 ```
 
 ## One-command install (macOS/Linux)

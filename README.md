@@ -25,6 +25,8 @@ pip install -e .
 cryptclash
 ```
 
+Running `cryptclash` / `DND` with no subcommand now opens a full-screen launcher menu (splash screen) with built-in setup forms for online account/login/character and LAN host/join paths. The launcher also includes `Start Local Server` / `Stop Local Server` actions for one-click local online setup, and launcher actions return to launcher screens (instead of dropping back to raw terminal prompts).
+
 ### One-command install (macOS/Linux)
 
 If you're publishing this repo publicly, you can also let players run the installer script:
@@ -40,14 +42,14 @@ Once you publish a Homebrew tap, players can install with:
 
 ```bash
 brew tap VF-AdminOver/games
-brew install crypt-clash
+brew install dnd
 cryptclash
 ```
 
 Single command (no separate tap step):
 
 ```bash
-brew install vf-adminover/games/crypt-clash && cryptclash
+brew install vf-adminover/games/dnd && cryptclash
 ```
 
 Primary command is `cryptclash` (alias: `crypt-clash`). Legacy aliases `DND` / `dnd` remain for compatibility.
@@ -110,7 +112,59 @@ cryptclash list-saves
 cryptclash tip
 ```
 
-## Online host/join (authoritative host)
+## Online MMO-lite (server-authoritative)
+
+Install client+server extras (no Docker path):
+
+```bash
+pip install -e ".[online,server]"
+```
+
+Start the online server locally (no Docker):
+
+```bash
+./scripts/run-online-local.sh
+```
+
+Register/login from a client:
+
+```bash
+cryptclash register --server http://127.0.0.1:8000 --username iris
+cryptclash login --server http://127.0.0.1:8000 --username iris
+```
+
+Notes:
+- `127.0.0.1` means "this same machine" (you are hosting your own credentials/server locally).
+- `--server` is optional for `register/login/online`; it defaults to last-used server, then local `http://127.0.0.1:8000`.
+- Account passwords require at least 8 characters.
+
+Create/list online characters:
+
+```bash
+cryptclash character create --name Iris --archetype Mage
+cryptclash characters
+```
+
+Join the online hub:
+
+```bash
+cryptclash online --server http://127.0.0.1:8000
+```
+
+`cryptclash online` currently provides a command-loop hub client (`party`, `ready`, `queue`, `react`) as the first MMO-lite slice.
+
+Docker path is also supported:
+
+```bash
+cp .env.example .env
+./scripts/run-online-docker.sh
+```
+
+Guides:
+- No Docker: `/Users/brianvassell/DND-cli/docs/online-local.md`
+- Docker: `/Users/brianvassell/DND-cli/docs/online-deploy.md`
+
+## Online host/join (legacy LAN mode)
 
 Start a host session (this machine owns the game state and opens the full Textual battle UI):
 
@@ -201,3 +255,5 @@ Notes:
 - Full game guide: `/Users/brianvassell/DND-cli/docs/game-manual.md`
 - Project roadmap: `/Users/brianvassell/DND-cli/docs/roadmap.md`
 - Online systems roadmap: `/Users/brianvassell/DND-cli/docs/online-roadmap.md`
+- Online local (no Docker) guide: `/Users/brianvassell/DND-cli/docs/online-local.md`
+- Online deployment guide: `/Users/brianvassell/DND-cli/docs/online-deploy.md`

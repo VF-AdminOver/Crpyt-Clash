@@ -4,7 +4,7 @@ This guide makes your game installable via:
 
 ```bash
 brew tap VF-AdminOver/games
-brew install crypt-clash
+brew install dnd
 cryptclash
 ```
 
@@ -57,14 +57,15 @@ python -m build
 
 ## 3) Generate the formula file
 
-From this repo (`/Users/brianvassell/DND-cli`), generate `Formula/crypt-clash.rb` for your tap:
+From this repo (`/Users/brianvassell/DND-cli`), generate `Formula/dnd.rb` for your tap:
 
 ```bash
 python3 /Users/brianvassell/DND-cli/scripts/make_homebrew_formula.py \
   --org VF-AdminOver \
   --repo Crpyt-Clash \
   --tag v0.1.0 \
-  --out Formula/crypt-clash.rb
+  --formula-name dnd \
+  --out Formula/dnd.rb
 ```
 
 That script downloads the tag tarball and computes the `sha256` automatically.
@@ -79,16 +80,16 @@ After you push the initial formula to your tap, run this (it prints resource blo
 
 ```bash
 brew tap VF-AdminOver/games https://github.com/VF-AdminOver/homebrew-games
-brew update-python-resources --print-only --ignore-non-pypi-packages vf-adminover/games/crypt-clash
+brew update-python-resources --print-only --ignore-non-pypi-packages vf-adminover/games/dnd
 ```
 
-Copy the printed `resource` blocks into `Formula/crypt-clash.rb`, commit, and push.
+Copy the printed `resource` blocks into `Formula/dnd.rb`, commit, and push.
 
 Commit + push from inside the tap repo:
 
 ```bash
-git add Formula/crypt-clash.rb
-git commit -m "Add crypt-clash v0.1.0"
+git add Formula/dnd.rb
+git commit -m "Add dnd v0.1.0"
 git push
 ```
 
@@ -98,7 +99,7 @@ On a clean machine (or after uninstalling old installs), run:
 
 ```bash
 brew tap VF-AdminOver/games https://github.com/VF-AdminOver/homebrew-games
-brew install crypt-clash
+brew install dnd
 cryptclash tip
 cryptclash
 ```
@@ -107,7 +108,7 @@ To upgrade after you publish a new release:
 
 ```bash
 brew update
-brew upgrade crypt-clash
+brew upgrade dnd
 ```
 
 ## 5) Update for a new version
@@ -115,5 +116,5 @@ brew upgrade crypt-clash
 When you release `v0.1.1`:
 
 1. Update version + tag + push in the game repo.
-2. Re-run the generator with `--tag v0.1.1` and overwrite `Formula/crypt-clash.rb`.
+2. Re-run the generator with `--tag v0.1.1` and overwrite `Formula/dnd.rb`.
 3. Commit + push the tap repo.
