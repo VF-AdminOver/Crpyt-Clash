@@ -54,7 +54,14 @@ If the command is not found, activate the venv and reinstall with `pip install -
 - `r`: restart encounter
 - `q` / `esc`: quit
 
-## 4) Gameplay Loop
+## 4) Tutorial Mode
+
+- On first local launcher run, tutorial starts automatically once.
+- During tutorial, choose `Skip Tutorial` anytime from the actions panel.
+- Tutorial can be replayed later from launcher via `Tutorial`.
+- Tutorial is isolated onboarding and does not overwrite your normal autosave run.
+
+## 5) Gameplay Loop
 
 1. Create/select hero.
 2. Explore room.
@@ -63,7 +70,7 @@ If the command is not found, activate the venv and reinstall with `pip install -
 5. Move deeper through all rooms.
 6. Start next adventure with scaled difficulty.
 
-## 5) Character Creation
+## 6) Character Creation
 
 On `cryptclash new`, creator flow is:
 
@@ -74,7 +81,7 @@ On `cryptclash new`, creator flow is:
 
 Your main hero is saved to roster and can be reused with `--hero`.
 
-## 6) Combat Flow (RPG-Style)
+## 7) Combat Flow (RPG-Style)
 
 Turn flow:
 
@@ -96,7 +103,12 @@ Turn flow:
 - Acting unit gains mana at turn start.
 - `Rest` in combat grants extra mana to the acting unit.
 
-## 7) Exploration Systems
+### Dice motion feedback
+
+- Dice checks now animate in phases: fast spin, visible slowdown, then settle.
+- The battle panel shows rolling momentum text so outcomes are easier to read.
+
+## 8) Exploration Systems
 
 ### Look Around
 
@@ -124,7 +136,7 @@ Turn flow:
 - `Hunt`: trigger respawn encounters (limited uses)
 - `Harvest`: collect crafting materials
 
-## 8) Loot, Economy, and Progression
+## 9) Loot, Economy, and Progression
 
 ### Loot
 
@@ -146,7 +158,7 @@ Turn flow:
 - Every 10th adventure is a boss adventure.
 - Boss rewards include unique ability-gear messaging.
 
-## 9) Online Play Basics
+## 10) Online Play Basics
 
 - Host is authoritative.
 - Clients send action intents.
@@ -155,7 +167,7 @@ Turn flow:
 - Chat defaults to reactions-only.
 - `text_18_plus` mode is explicit host opt-in.
 
-## 10) Troubleshooting
+## 11) Troubleshooting
 
 ### `command not found`
 
@@ -176,7 +188,7 @@ pip install -e .
 - Use `t` for contextual tips.
 - If needed, restart current encounter with `r`.
 
-## 11) Related Docs
+## 12) Related Docs
 
 - Product roadmap: `/Users/brianvassell/DND-cli/docs/roadmap.md`
 - Online systems roadmap: `/Users/brianvassell/DND-cli/docs/online-roadmap.md`

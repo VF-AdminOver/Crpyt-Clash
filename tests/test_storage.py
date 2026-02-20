@@ -15,11 +15,14 @@ from dnd_cli.storage import (
     list_roster_heroes,
     list_hall_of_fame,
     load_roster,
+    load_tutorial_state,
     load_game,
     save_roster,
+    save_tutorial_state,
     save_game,
     save_slot,
     slot_path,
+    tutorial_state_path,
     upsert_roster_hero,
 )
 
@@ -103,6 +106,21 @@ class StorageTests(unittest.TestCase):
                 delete_roster_hero("pc-delete")
                 rows = list_roster_heroes()
                 self.assertEqual(rows, [])
+
+    def test_tutorial_state_defaults_and_roundtrip(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            with patch("dnd_cli.storage.profile_root", return_value=root):
+                defaults = load_tutorial_state()
+                self.assertFalse(defaults["seen"])
+                self.assertFalse(defaults["completed"])
+                self.assertFalse(defaults["skipped"])
+                save_tutorial_state({"seen": True, "completed": True, "skipped": False, "version": 1})
+                loaded = load_tutorial_state()
+                self.assertTrue(loaded["seen"])
+                self.assertTrue(loaded["completed"])
+                self.assertFalse(loaded["skipped"])
+                self.assertTrue(tutorial_state_path().exists())
 
 
 if __name__ == "__main__":

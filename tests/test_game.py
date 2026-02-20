@@ -3,7 +3,7 @@ from __future__ import annotations
 import unittest
 from unittest.mock import patch
 
-from dnd_cli.game import Game
+from dnd_cli.game import Game, Unit
 
 
 class GameTests(unittest.TestCase):
@@ -81,6 +81,21 @@ class GameTests(unittest.TestCase):
         with patch.object(game.rng, "random", return_value=0.99):
             game.perform_player_action("Look Around")
         self.assertIn("Explore Space", game.action_labels())
+
+    def test_tutorial_context_initializes_scripted_room(self) -> None:
+        game = Game(seed=11, run_mode="normal", run_context="tutorial")
+        self.assertTrue(game.is_tutorial)
+        self.assertEqual(game.run_context, "tutorial")
+        self.assertEqual(len(game.rooms), 1)
+        self.assertEqual(game.rooms[0]["name"], "Training Annex")
+
+    def test_tutorial_look_around_discovers_chest(self) -> None:
+        game = Game(seed=11, run_mode="normal", run_context="tutorial")
+        chest = game.rooms[game.room_index]["chest"]
+        self.assertFalse(chest["discovered"])
+        game.perform_player_action("Look Around")
+        self.assertTrue(chest["discovered"])
+        self.assertTrue(any("tutorial:" in entry.lower() for entry in game.log))
 
     def test_explore_space_tracks_room_progress(self) -> None:
         game = Game(seed=11, run_mode="normal")
@@ -415,6 +430,53 @@ class GameTests(unittest.TestCase):
         game.run_enemy_turns_until_player()
         if game.mode == "combat" and game.is_player_turn():
             self.assertGreaterEqual(game.active_unit().mana, 1)
+
+    def test_enemy_targeting_is_not_always_party0_at_equal_hp(self) -> None:
+        game = Game(seed=11)
+        enemy_name, enemy_hp, enemy_attack, enemy_damage_min, enemy_damage_max = game.rooms[0]["enemies"][0]
+        game.enemies = [
+            Unit(
+                name=enemy_name,
+                hp=enemy_hp,
+                max_hp=enemy_hp,
+                attack_bonus=enemy_attack,
+                damage_min=enemy_damage_min,
+                damage_max=enemy_damage_max,
+            )
+        ]
+        for unit in game.party:
+            unit.hp = unit.max_hp
+        chosen_indices = []
+        for _ in range(30):
+            target = game._choose_enemy_target(game.enemies[0])
+            self.assertIsNotNone(target)
+            chosen_indices.append(game.party.index(target))
+        self.assertGreaterEqual(len(set(chosen_indices)), 2)
+
+    def test_enemy_targeting_biases_toward_low_hp_unit(self) -> None:
+        game = Game(seed=11)
+        enemy_name, enemy_hp, enemy_attack, enemy_damage_min, enemy_damage_max = game.rooms[0]["enemies"][0]
+        game.enemies = [
+            Unit(
+                name=enemy_name,
+                hp=enemy_hp,
+                max_hp=enemy_hp,
+                attack_bonus=enemy_attack,
+                damage_min=enemy_damage_min,
+                damage_max=enemy_damage_max,
+            )
+        ]
+        for unit in game.party:
+            unit.hp = unit.max_hp
+        game.party[2].hp = max(1, int(game.party[2].max_hp * 0.2))
+        target_counts = {index: 0 for index, _ in enumerate(game.party)}
+        for _ in range(100):
+            target = game._choose_enemy_target(game.enemies[0])
+            self.assertIsNotNone(target)
+            target_counts[game.party.index(target)] += 1
+        low_hp_index = 2
+        other_counts = [count for index, count in target_counts.items() if index != low_hp_index]
+        self.assertGreater(target_counts[low_hp_index], max(other_counts))
 
     def test_legacy_save_loads_with_default_mana_and_skills(self) -> None:
         game = Game(seed=11)

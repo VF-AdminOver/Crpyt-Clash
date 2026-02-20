@@ -126,9 +126,17 @@ class Game:
         "holy_water": {"herbs": 3, "gold": 12},
     }
 
-    def __init__(self, seed: int = 7, run_mode: str = "normal", party: list[Unit] | None = None) -> None:
+    def __init__(
+        self,
+        seed: int = 7,
+        run_mode: str = "normal",
+        party: list[Unit] | None = None,
+        run_context: str = "normal",
+    ) -> None:
         self.seed = seed
         self.run_mode = run_mode if run_mode in {"normal", "ironman"} else "normal"
+        self.run_context = run_context if run_context in {"normal", "tutorial"} else "normal"
+        self.is_tutorial = self.run_context == "tutorial"
         self.rng = random.Random(self.seed)
         self.mode = "explore"
         self.combat_kind = "main"
@@ -156,7 +164,7 @@ class Game:
         self.boss_reward_pending = False
         self.gold = 0
         self.inventory: dict[str, int] = {"healing_potion": 2}
-        self.rooms = self._generate_rooms_for_adventure(self.adventure_number)
+        self.rooms = self._generate_tutorial_rooms() if self.is_tutorial else self._generate_rooms_for_adventure(self.adventure_number)
         self.party = party if party is not None else self._default_party()
         self.equipment = {
             self._equipment_key(unit): {"weapon": None, "armor": None}
@@ -172,8 +180,8 @@ class Game:
         self.last_drop_debug = ""
         self.log: list[str] = [
             f"Run mode: {self.run_mode}.",
-            "Your party descends into the crypt.",
-            "Choose Venture Deeper to begin the first encounter.",
+            "Tutorial mode: guided one-room onboarding." if self.is_tutorial else "Your party descends into the crypt.",
+            "Choose Venture Deeper to begin tutorial combat." if self.is_tutorial else "Choose Venture Deeper to begin the first encounter.",
         ]
         self._turn_order: list[Unit] = []
         self._update_travel_percent()
@@ -504,7 +512,7 @@ class Game:
             actor = self.active_unit()
             if not actor or actor not in self.enemies:
                 break
-            target = self._lowest_hp_alive(self.party)
+            target = self._choose_enemy_target(actor)
             if target:
                 self._attack(actor, target)
             self._advance_turn()
@@ -598,6 +606,32 @@ class Game:
             return None
         return min(alive, key=lambda unit: unit.hp / unit.max_hp)
 
+    def _choose_enemy_target(self, attacker: Unit) -> Unit | None:
+        del attacker  # Reserved for future behavior that depends on enemy archetype.
+        candidates = [unit for unit in self.party if unit.alive]
+        if not candidates:
+            return None
+        weights: list[float] = []
+        for unit in candidates:
+            max_hp = max(1, unit.max_hp)
+            ratio = unit.hp / max_hp
+            weight = 1.0
+            if ratio <= 0.33:
+                weight *= 1.75
+            elif ratio <= 0.66:
+                weight *= 1.25
+            weights.append(weight)
+        total_weight = sum(weights)
+        if total_weight <= 0:
+            return candidates[0]
+        roll = self.rng.random() * total_weight
+        current = 0.0
+        for unit, weight in zip(candidates, weights):
+            current += weight
+            if roll <= current:
+                return unit
+        return candidates[-1]
+
     def current_room_name(self) -> str:
         if self.room_index >= len(self.rooms):
             return "Cleared Depths"
@@ -644,6 +678,31 @@ class Game:
                 }
             )
         return rooms
+
+    def _generate_tutorial_rooms(self) -> list[dict]:
+        return [
+            {
+                "name": "Training Annex",
+                "description": "Lanterns reveal etched instructions across the stone floor.",
+                "enemies": [("Training Wraith", 18, 2, 3, 6)],
+                "loot": ["healing_potion", "rusty_sword"],
+                "look_encounter_checked": True,
+                "looked": False,
+                "spaces_total": 6,
+                "spaces_explored": 0,
+                "harvested": False,
+                "respawns_used": 0,
+                "chest": {
+                    "present": True,
+                    "opened": False,
+                    "discovered": False,
+                    "search_attempts": 0,
+                    "search_attempts_max": 2,
+                    "search_dc": 10,
+                    "tier": "common",
+                },
+            }
+        ]
 
     def _is_boss_adventure(self, adventure_number: int | None = None) -> bool:
         value = self.adventure_number if adventure_number is None else adventure_number
@@ -891,6 +950,12 @@ class Game:
             self._append_log(f"You sense {enemy_count} hostile figures ahead.")
         if room.get("loot"):
             self._append_log("Clues suggest useful salvage deeper inside.")
+        if self.is_tutorial:
+            chest = room.get("chest", {})
+            if isinstance(chest, dict) and bool(chest.get("present")) and not bool(chest.get("discovered")):
+                chest["discovered"] = True
+                chest["search_attempts"] = max(1, int(chest.get("search_attempts", 0)))
+                self._append_log("Tutorial: You notice a chest tucked behind the practice pillars.")
         self._attempt_chest_discovery()
         self._attempt_look_encounter()
 
@@ -1939,6 +2004,7 @@ class Game:
         return {
             "seed": self.seed,
             "run_mode": self.run_mode,
+            "run_context": self.run_context,
             "adventure_number": self.adventure_number,
             "mode": self.mode,
             "combat_kind": self.combat_kind,
@@ -1984,6 +2050,8 @@ class Game:
         game = cls.__new__(cls)
         game.seed = int(data.get("seed", 7))
         game.run_mode = str(data.get("run_mode", "normal"))
+        game.run_context = str(data.get("run_context", "normal"))
+        game.is_tutorial = game.run_context == "tutorial"
         game.adventure_number = int(data.get("adventure_number", 1))
         game.rng = random.Random(game.seed)
         rng_state = data.get("rng_state")
@@ -2023,7 +2091,9 @@ class Game:
         game.last_drop_debug = str(data.get("last_drop_debug", ""))
         game.gold = int(data.get("gold", 0))
         loaded_rooms = list(data.get("rooms", []))
-        game.rooms = loaded_rooms if loaded_rooms else game._generate_rooms_for_adventure(game.adventure_number)
+        game.rooms = loaded_rooms if loaded_rooms else (
+            game._generate_tutorial_rooms() if game.is_tutorial else game._generate_rooms_for_adventure(game.adventure_number)
+        )
         for index, room in enumerate(game.rooms):
             room.setdefault("look_encounter_checked", False)
             room.setdefault("looked", False)

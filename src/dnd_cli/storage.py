@@ -24,6 +24,68 @@ def roster_path() -> Path:
     return profile_root() / "roster.json"
 
 
+def auth_path() -> Path:
+    return profile_root() / "auth.json"
+
+
+def tutorial_state_path() -> Path:
+    return profile_root() / "tutorial.json"
+
+
+def load_auth() -> dict:
+    path = auth_path()
+    if not path.exists():
+        return {}
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    return payload if isinstance(payload, dict) else {}
+
+
+def save_auth(payload: dict) -> None:
+    path = auth_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temp_path = path.with_suffix(path.suffix + ".tmp")
+    temp_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    temp_path.replace(path)
+
+
+def load_tutorial_state() -> dict:
+    default = {"seen": False, "completed": False, "skipped": False, "version": 1}
+    path = tutorial_state_path()
+    if not path.exists():
+        return dict(default)
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        return dict(default)
+    return {
+        "seen": bool(payload.get("seen", False)),
+        "completed": bool(payload.get("completed", False)),
+        "skipped": bool(payload.get("skipped", False)),
+        "version": int(payload.get("version", 1) or 1),
+        "updated_at": str(payload.get("updated_at", "")),
+    }
+
+
+def save_tutorial_state(payload: dict) -> None:
+    path = tutorial_state_path()
+    state = {
+        "seen": bool(payload.get("seen", False)),
+        "completed": bool(payload.get("completed", False)),
+        "skipped": bool(payload.get("skipped", False)),
+        "version": int(payload.get("version", 1) or 1),
+        "updated_at": datetime.now().isoformat(timespec="seconds"),
+    }
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temp_path = path.with_suffix(path.suffix + ".tmp")
+    temp_path.write_text(json.dumps(state, indent=2), encoding="utf-8")
+    temp_path.replace(path)
+
+
+def clear_auth() -> None:
+    path = auth_path()
+    if path.exists():
+        path.unlink()
+
+
 def hall_of_fame_root() -> Path:
     root = save_root() / "hall-of-fame"
     root.mkdir(parents=True, exist_ok=True)

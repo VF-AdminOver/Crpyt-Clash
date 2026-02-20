@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -24,6 +25,7 @@ from dnd_cli.creator import (
     validate_name,
 )
 from dnd_cli.game import Game, Unit
+from dnd_cli.items import ITEM_DEFS, item_rarity
 from dnd_cli.storage import (
     archive_ironman_victory,
     delete_active_ironman_save,
@@ -47,18 +49,29 @@ class DndApp(App[None]):
     CSS = """
     Screen {
         layout: vertical;
+        background: #0a1018;
+        color: #d6dfeb;
     }
     #content {
         height: 1fr;
     }
     .panel {
-        border: round #666666;
+        border: round #4a617d;
+        background: #111a28;
         padding: 1;
         width: 1fr;
         margin: 0 1 1 1;
     }
     .active_panel {
-        border: round #9fb7d4;
+        border: round #d2aa64;
+        background: #162337;
+    }
+    Label {
+        color: #9dbced;
+        text-style: bold;
+    }
+    #log_title {
+        color: #f3d58b;
     }
     #party_panel {
         width: 1.35fr;
@@ -75,6 +88,9 @@ class DndApp(App[None]):
     #status {
         height: 2;
         margin: 0 1;
+        border: round #5b7391;
+        background: #101726;
+        padding: 0 1;
     }
     #actions_title {
         margin-bottom: 1;
@@ -83,19 +99,29 @@ class DndApp(App[None]):
         border: none;
         padding: 0;
     }
+    #actions_list > ListItem {
+        height: auto;
+        min-height: 1;
+    }
+    #actions_list > ListItem > Label {
+        text-wrap: wrap;
+    }
     ListView > ListItem.--highlight {
-        background: #2b3644;
-        color: #ffffff;
+        background: #2d3f5a;
+        color: #f7fbff;
         text-style: bold;
     }
     #help {
-        color: #aaaaaa;
+        color: #a8b4c6;
         height: 2;
     }
     #toast {
         color: #f0d27a;
         height: 1;
         margin: 0 1;
+        background: #111a28;
+        border: round #6d5a33;
+        padding: 0 1;
     }
     """
 
@@ -108,6 +134,15 @@ class DndApp(App[None]):
         "wis": "WIS: insight, focus, and support power.",
         "cha": "CHA: presence and social force.",
     }
+    TUTORIAL_STEPS = [
+        "Select Venture Deeper to start the lesson fight.",
+        "Use Attack, pick a style, then pick an enemy target.",
+        "Use Skills on a target, or Defend if needed.",
+        "Open Bag or Equip Gear to learn utility controls.",
+        "Open Path and then Close Map.",
+        "Use Look Around, then Open Chest.",
+        "Finish tutorial and begin your real adventure.",
+    ]
 
     def __init__(
         self,
@@ -117,6 +152,7 @@ class DndApp(App[None]):
         run_mode: str = "normal",
         seed: int = 7,
         online_client: Any | None = None,
+        tutorial_mode: bool = False,
     ) -> None:
         super().__init__()
         self.seed = seed
@@ -129,6 +165,7 @@ class DndApp(App[None]):
         self._display_action_map: dict[str, str] = {}
         self.roll_animating = False
         self.roll_frames: list[str] = []
+        self.roll_frame_delays: list[float] = []
         self.roll_frame_index = 0
         self.pending_action_label: str | None = None
         self.roll_timer: Any | None = None
@@ -138,8 +175,16 @@ class DndApp(App[None]):
         self.zoom_level = 100
         self.toast_message = ""
         self.toast_timer: Any | None = None
+        self.event_timer: Any | None = None
+        self.event_flash_message = ""
+        self._local_log_snapshot = [str(entry) for entry in self.game.log[-12:]]
+        self._online_log_snapshot: list[str] = []
+        self.tutorial_mode = tutorial_mode and not self.online_mode
+        self.tutorial_step_index = 0
+        self.tutorial_map_opened = False
+        self.tutorial_result = "quit"
         self.roster_cache = load_roster() if creation_enabled and not self.online_mode else []
-        self.creation_mode = creation_enabled and not self.online_mode
+        self.creation_mode = creation_enabled and not self.online_mode and not self.tutorial_mode
         self.creator_stage = "roster" if self.creation_mode and self.roster_cache else "name"
         self.creator_name = random_name(seed)
         self.creator_archetype = "Fighter"
@@ -155,13 +200,13 @@ class DndApp(App[None]):
         yield Static("", id="status")
         with Horizontal(id="content"):
             with Vertical(classes="panel", id="party_panel"):
-                yield Label("Party")
+                yield Label("Party Ledger", id="party_title")
                 yield Static("", id="party_text")
             with Vertical(classes="panel", id="battle_panel"):
                 yield Label("Battle Screen", id="battle_title")
                 yield Static("", id="battle_text")
             with Vertical(classes="panel", id="log_panel"):
-                yield Label("Adventure Log")
+                yield Label("Adventure Chronicle", id="log_title")
                 yield Static("", id="log_text")
             with Vertical(classes="panel", id="actions_panel"):
                 yield Label("Actions", id="actions_title")
@@ -179,6 +224,8 @@ class DndApp(App[None]):
     def on_unmount(self) -> None:
         if self.toast_timer:
             self.toast_timer.stop()
+        if self.event_timer:
+            self.event_timer.stop()
         if self.online_client:
             self.online_client.close()
 
@@ -192,6 +239,9 @@ class DndApp(App[None]):
     def _clear_toast(self) -> None:
         self.toast_message = ""
         self.query_one("#toast", Static).update("")
+
+    def _clear_event_flash(self) -> None:
+        self.event_flash_message = ""
 
     def _apply_zoom_layout(self) -> None:
         party_panel = self.query_one("#party_panel", Vertical)
@@ -271,6 +321,22 @@ class DndApp(App[None]):
         action_label = self._selected_action_label()
         if not action_label:
             return
+        if self.tutorial_mode:
+            if action_label == "Skip Tutorial":
+                self._finish_tutorial("skipped")
+                return
+            if action_label == "Finish Tutorial":
+                if self.tutorial_step_index >= len(self.TUTORIAL_STEPS) - 1:
+                    self._finish_tutorial("completed")
+                else:
+                    self._show_toast("Complete all tutorial steps first.")
+                return
+            if not self._tutorial_action_allowed(action_label):
+                self.game.log.append(f"Tutorial hint: {self._tutorial_step_text()}")
+                self.game.log = self.game.log[-12:]
+                self._show_toast("Follow the tutorial step on screen.")
+                self._refresh_all()
+                return
         if action_label in {"Restart with R", "Quit with Q", "Waiting for enemy turn..."}:
             return
         if self._should_animate_roll(action_label):
@@ -400,10 +466,14 @@ class DndApp(App[None]):
         if self.creation_mode:
             self._refresh_creator_view()
             return
+        self._capture_local_log_updates()
         self._update_panel_visibility()
         self._highlight_active_panel()
         self._apply_wrap_mode()
-        self.query_one("#status", Static).update(self.game.status_summary())
+        status = self.game.status_summary()
+        if self.tutorial_mode:
+            status = f"Tutorial Step {self.tutorial_step_index + 1}/{len(self.TUTORIAL_STEPS)} | {status}"
+        self.query_one("#status", Static).update(status)
         self.query_one("#party_text", Static).update(self._render_party())
         battle_title = "Mini Map Overlay" if self.game.menu == "map" else "Battle Screen"
         self.query_one("#battle_title", Label).update(battle_title)
@@ -414,6 +484,7 @@ class DndApp(App[None]):
         self.query_one("#toast", Static).update(self.toast_message)
 
     def _refresh_online_view(self) -> None:
+        self._capture_online_log_updates()
         self._update_panel_visibility()
         self._highlight_active_panel()
         self._apply_wrap_mode()
@@ -487,8 +558,16 @@ class DndApp(App[None]):
     def _render_log(self) -> str:
         if self.render_mode == "text_only":
             return "\n".join(str(entry) for entry in self.game.log[-12:])
-        lines = ["~ Adventure Feed ~"]
-        lines.extend(f"• {entry}" for entry in self.game.log[-12:])
+        lines = ["[bold #8eb5ff]~ Adventure Feed ~[/]"]
+        if self.tutorial_mode:
+            lines.append(f"[bold #f6d07a]Tutorial:[/] {self._tutorial_step_text()}")
+            lines.append("")
+        if self.event_flash_message:
+            lines.append(f"[bold #ffd27f]>> JUST NOW <<[/] {self._style_log_text(self.event_flash_message)}")
+            lines.append("")
+        for entry in self.game.log[-12:]:
+            bullet = self._entry_bullet(str(entry))
+            lines.append(f"{bullet} {self._style_log_text(str(entry))}")
         return "\n".join(lines)
 
     def _render_online_party(self) -> str:
@@ -593,10 +672,13 @@ class DndApp(App[None]):
                 if "< encounter feed >" not in line and not any(line.strip().startswith(prefix) for prefix in filtered_prefixes)
             ]
             base = "\n".join(base_lines)
+        tutorial_line = f"Tutorial: {self._tutorial_step_text()}" if self.tutorial_mode else ""
+        blocks = [base]
         if tooltip:
-            self.query_one("#battle_text", Static).update(f"{base}\n\nSkill Tip: {tooltip}")
-        else:
-            self.query_one("#battle_text", Static).update(base)
+            blocks.append(f"Skill Tip: {tooltip}")
+        if tutorial_line:
+            blocks.append(tutorial_line)
+        self.query_one("#battle_text", Static).update("\n\n".join(blocks))
 
     def _tooltip_for_local_selection(self) -> str:
         if self.game.mode != "combat":
@@ -662,7 +744,14 @@ class DndApp(App[None]):
             entries = ["Connecting to host..."]
         if self.render_mode == "text_only":
             return "\n".join(entries[-12:])
-        return "\n".join(["~ Party Channel ~", *[f"• {entry}" for entry in entries[-12:]]])
+        lines = ["[bold #8eb5ff]~ Party Channel ~[/]"]
+        if self.event_flash_message:
+            lines.append(f"[bold #ffd27f]>> JUST NOW <<[/] {self._style_log_text(self.event_flash_message)}")
+            lines.append("")
+        for entry in entries[-12:]:
+            bullet = self._entry_bullet(entry)
+            lines.append(f"{bullet} {self._style_log_text(entry)}")
+        return "\n".join(lines)
 
     def _render_creator_party(self) -> str:
         if self.creator_stage == "roster":
@@ -755,6 +844,11 @@ class DndApp(App[None]):
             raw_labels = [str(label) for label in self.online_snapshot.get("actions", [])]
         else:
             raw_labels = self._creator_action_labels() if self.creation_mode else self.game.action_labels()
+        if self.tutorial_mode and not self.creation_mode:
+            if self.tutorial_step_index >= len(self.TUTORIAL_STEPS) - 1:
+                raw_labels = [*raw_labels, "Finish Tutorial", "Skip Tutorial"]
+            else:
+                raw_labels = [*raw_labels, "Skip Tutorial"]
         if not raw_labels:
             raw_labels = ["Waiting for host..." if self.online_mode else "Waiting for enemy turn..."]
         self._display_action_map = {}
@@ -815,6 +909,12 @@ class DndApp(App[None]):
             if self.creator_stage == "name":
                 return "[Type name] [1-9] select [Enter] confirm [Esc] quit"
             return "[1-9] select [Enter] confirm [Esc] quit"
+        if self.tutorial_mode:
+            return "[Tutorial] [1-9] select [Enter] confirm | Skip Tutorial available"
+        if self.game.mode == "victory":
+            return "Victory reached. Choose [1] Begin Next Adventure, then press [Enter]."
+        if self.game.mode == "defeat":
+            return "Defeat screen: choose [1] Restart with R or [2] Quit with Q."
         return f"{self.game.menu_context_text()} | [1-9] or click [R/S/T/Q] [Enter] confirm | Mode:{self.render_mode}"
 
     def _creator_action_labels(self) -> list[str]:
@@ -1140,17 +1240,26 @@ class DndApp(App[None]):
         self.pending_action_label = action_label
         self.roll_frame_index = 0
         self.roll_frames = [
-            f"Rolling d20 for {actor_name} [ 1 ]",
-            f"Rolling d20 for {actor_name} [ 7 ]",
-            f"Rolling d20 for {actor_name} [ 13 ]",
-            f"Rolling d20 for {actor_name} [ 19 ]",
-            f"Rolling d20 for {actor_name} [ ? ]",
-            "d20 lands!",
+            f"{actor_name} rolls [ / ]  speed: fast",
+            f"{actor_name} rolls [ - ]  speed: fast",
+            f"{actor_name} rolls [ \\ ]  speed: fast",
+            f"{actor_name} rolls [ | ]  speed: fast",
+            f"{actor_name} rolls [ / ]  speed: fast",
+            f"{actor_name} rolls [ - ]  speed: fast",
+            f"{actor_name} rolls [ 16 ] speed: slowing",
+            f"{actor_name} rolls [ 4 ]  speed: slowing",
+            f"{actor_name} rolls [ 12 ] speed: slowing",
+            f"{actor_name} rolls [ 9 ]  speed: slowing",
+            "d20 lands [ ? ]  result pending",
+            "d20 settled. Resolving action...",
         ]
+        self.roll_frame_delays = [0.06, 0.06, 0.06, 0.06, 0.06, 0.06, 0.1, 0.11, 0.12, 0.13, 0.16, 0.16]
         self._show_toast("Rolling d20...")
         self._play_sfx("roll")
         self._render_roll_frame()
-        self.roll_timer = self.set_interval(0.08, self._on_roll_animation_tick)
+        if self.roll_timer:
+            self.roll_timer.stop()
+        self.roll_timer = self.set_timer(self.roll_frame_delays[0], self._on_roll_animation_tick)
 
     def _on_roll_animation_tick(self) -> None:
         if not self.roll_animating:
@@ -1166,12 +1275,17 @@ class DndApp(App[None]):
             self.roll_animating = False
             self.pending_action_label = None
             self.roll_frames = []
+            self.roll_frame_delays = []
             if pending:
                 self._execute_game_action(pending)
             else:
                 self._refresh_all()
             return
         self._render_roll_frame()
+        if self.roll_timer:
+            self.roll_timer.stop()
+        delay = self.roll_frame_delays[min(self.roll_frame_index, len(self.roll_frame_delays) - 1)]
+        self.roll_timer = self.set_timer(delay, self._on_roll_animation_tick)
 
     def _render_roll_frame(self) -> None:
         battle_title = "Mini Map Overlay" if self.game.menu == "map" else "Battle Screen"
@@ -1182,6 +1296,8 @@ class DndApp(App[None]):
         self.query_one("#help", Static).update(self._help_text())
 
     def _execute_game_action(self, action_label: str) -> None:
+        before_menu = self.game.menu
+        before_pending_action = self.game.pending_action_type
         before_log_len = len(self.game.log)
         before_mode = self.game.mode
         before_banner = self.game.result_banner
@@ -1197,6 +1313,12 @@ class DndApp(App[None]):
             before_drop=before_drop,
             before_levels=before_levels,
         )
+        if self.tutorial_mode:
+            self._advance_tutorial_progress(
+                action_label=action_label,
+                before_menu=before_menu,
+                before_pending_action=before_pending_action,
+            )
         self._save_silent()
         self._refresh_all()
 
@@ -1214,7 +1336,10 @@ class DndApp(App[None]):
             self._play_sfx("result")
             return
         if self.game.mode != before_mode and self.game.mode in {"victory", "defeat"}:
-            self._show_toast("Victory!" if self.game.mode == "victory" else "Defeat...")
+            if self.game.mode == "victory":
+                self._show_toast("Victory! Choose Begin Next Adventure to continue.")
+            else:
+                self._show_toast("Defeat... Choose Restart to try again.")
             self._play_sfx("result")
             return
         for unit in self.game.party:
@@ -1242,20 +1367,26 @@ class DndApp(App[None]):
     def _play_sfx(self, event_type: str) -> None:
         if not self.sound_enabled:
             return
-        bells = {
-            "roll": "\a",
-            "loot": "\a",
-            "level": "\a\a",
-            "result": "\a\a\a",
-            "info": "\a",
-        }
-        print(bells.get(event_type, "\a"), end="", flush=True)
+        bell_count = {
+            "roll": 1,
+            "loot": 1,
+            "level": 2,
+            "result": 3,
+            "info": 1,
+        }.get(event_type, 1)
+        for _ in range(bell_count):
+            try:
+                self.bell()
+            except Exception:
+                print("\a", end="", file=sys.stderr, flush=True)
 
     def _append_online_note(self, text: str) -> None:
         self.online_notes.append(text)
         self.online_notes = self.online_notes[-12:]
 
     def _save_silent(self) -> None:
+        if self.tutorial_mode:
+            return
         if self.game.run_mode == "ironman" and self.game.mode == "defeat":
             delete_active_ironman_save()
             self.game.log.append("Ironman run ended. Save deleted.")
@@ -1319,6 +1450,139 @@ class DndApp(App[None]):
         if ratio > 0.33:
             return "💛"
         return "❤️"
+
+    def _capture_local_log_updates(self) -> None:
+        current = [str(entry) for entry in self.game.log[-12:]]
+        new_entries = self._extract_new_entries(self._local_log_snapshot, current)
+        if new_entries:
+            self._flash_event(new_entries[-1], play_sound=False)
+        self._local_log_snapshot = current
+
+    def _capture_online_log_updates(self) -> None:
+        current = [str(item) for item in self.online_snapshot.get("log", [])]
+        current.extend(self.online_notes[-4:])
+        new_entries = self._extract_new_entries(self._online_log_snapshot, current)
+        if new_entries:
+            self._flash_event(new_entries[-1], play_sound=True)
+        self._online_log_snapshot = current
+
+    def _flash_event(self, text: str, play_sound: bool) -> None:
+        self.event_flash_message = text
+        if self.event_timer:
+            self.event_timer.stop()
+        self.event_timer = self.set_timer(2.8, self._clear_event_flash)
+        if play_sound:
+            self._play_sfx("info")
+
+    @staticmethod
+    def _extract_new_entries(previous: list[str], current: list[str]) -> list[str]:
+        if not previous:
+            return []
+        if current == previous:
+            return []
+        if len(current) >= len(previous) and current[: len(previous)] == previous:
+            return current[len(previous) :]
+        max_overlap = min(len(previous), len(current))
+        for overlap in range(max_overlap, 0, -1):
+            if previous[-overlap:] == current[:overlap]:
+                return current[overlap:]
+        return current
+
+    @staticmethod
+    def _entry_bullet(entry: str) -> str:
+        lowered = entry.lower()
+        if "loot" in lowered or "reward" in lowered or "chest" in lowered or "gold" in lowered:
+            return "[bold #ffd27f]◆[/]"
+        if "ambush" in lowered or "trap" in lowered or "defeat" in lowered:
+            return "[bold #ff9f9f]◆[/]"
+        if "restorative" in lowered or "heals" in lowered or "recover" in lowered:
+            return "[bold #9de5b2]◆[/]"
+        return "[bold #8fb3d9]•[/]"
+
+    def _style_log_text(self, entry: str) -> str:
+        styled = entry
+        rarity_palette = {"common": "#dfe8f2", "uncommon": "#88e2ff", "rare": "#f2a8ff"}
+        for item_id, item_data in ITEM_DEFS.items():
+            item_name = str(item_data.get("name", "")).strip()
+            if not item_name:
+                continue
+            rarity = item_rarity(item_id)
+            color = rarity_palette.get(rarity, "#dfe8f2")
+            styled = re.sub(
+                re.escape(item_name),
+                lambda match: f"[{color}]{match.group(0)}[/]",
+                styled,
+                flags=re.IGNORECASE,
+            )
+        styled = re.sub(r"(\+?\d+\s*gold)", r"[#f5d279]\1[/]", styled, flags=re.IGNORECASE)
+        styled = re.sub(r"(\+?\d+g)", r"[#f5d279]\1[/]", styled, flags=re.IGNORECASE)
+        if "loot roll:" in entry.lower():
+            return f"[#c7d2e3]{styled}[/]"
+        return styled
+
+    def _tutorial_step_text(self) -> str:
+        index = min(self.tutorial_step_index, len(self.TUTORIAL_STEPS) - 1)
+        return self.TUTORIAL_STEPS[index]
+
+    def _tutorial_action_allowed(self, action_label: str) -> bool:
+        if action_label in {"Skip Tutorial", "Finish Tutorial"}:
+            return True
+        step = self.tutorial_step_index
+        if step == 0:
+            return action_label == "Venture Deeper"
+        if step >= 6:
+            return action_label in {"Finish Tutorial", "Skip Tutorial"}
+        return True
+
+    def _advance_tutorial_progress(self, *, action_label: str, before_menu: str, before_pending_action: str | None) -> None:
+        previous_step = self.tutorial_step_index
+        if self.tutorial_step_index == 0 and action_label == "Venture Deeper":
+            self.tutorial_step_index = 1
+            self.game.log.append("Tutorial: Great. Now practice attack style selection and targeting.")
+        elif (
+            self.tutorial_step_index == 1
+            and before_menu == "target_enemy"
+            and before_pending_action == "attack"
+            and action_label.startswith("Target: ")
+        ):
+            self.tutorial_step_index = 2
+            self.game.log.append("Tutorial: Nice hit. Next, use a skill (or Defend if needed).")
+        elif self.tutorial_step_index == 2 and action_label == "Defend":
+            self.tutorial_step_index = 3
+            self.game.log.append("Tutorial: Good defense. Open Bag or Equip Gear next.")
+        elif (
+            self.tutorial_step_index == 2
+            and before_menu in {"target_enemy", "target_ally"}
+            and before_pending_action == "skill"
+            and action_label.startswith("Target")
+        ):
+            self.tutorial_step_index = 3
+            self.game.log.append("Tutorial: Skill confirmed. Open Bag or Equip Gear next.")
+        elif self.tutorial_step_index == 3 and action_label in {"Bag", "Equip Gear"}:
+            self.tutorial_step_index = 4
+            self.game.log.append("Tutorial: Utility learned. Open Path then close the map.")
+        elif self.tutorial_step_index == 4 and action_label == "Path":
+            self.tutorial_map_opened = True
+        elif self.tutorial_step_index == 4 and self.tutorial_map_opened and action_label == "Close Map":
+            self.tutorial_step_index = 5
+            self.game.log.append("Tutorial: Great navigation. Look Around, then open the chest.")
+        elif self.tutorial_step_index == 5 and action_label == "Open Chest":
+            self.tutorial_step_index = 6
+            self.game.log.append("Tutorial: Final step unlocked. Choose Finish Tutorial.")
+        elif self.tutorial_step_index >= 1 and action_label != "Skip Tutorial" and self.tutorial_step_index == previous_step:
+            self.game.log.append(f"Tutorial hint: {self._tutorial_step_text()}")
+        self.game.log = self.game.log[-12:]
+
+    def _finish_tutorial(self, result: str) -> None:
+        self.tutorial_result = result
+        if result == "completed":
+            self.game.log.append("Tutorial complete. You are ready for a full run.")
+            self._show_toast("Tutorial complete.")
+        else:
+            self.game.log.append("Tutorial skipped.")
+            self._show_toast("Tutorial skipped.")
+        self.game.log = self.game.log[-12:]
+        self.exit()
 
     def _point_delta(self, stat: str, from_value: int, to_value: int) -> int:
         before = dict(self.creator_stats)
