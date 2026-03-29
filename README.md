@@ -18,7 +18,7 @@ A playable full-screen terminal RPG prototype using Python + Textual.
 ## Quickstart
 
 ```bash
-cd /Users/brianvassell/DND-cli
+cd /path/to/project
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -e .
@@ -161,8 +161,8 @@ cp .env.example .env
 ```
 
 Guides:
-- No Docker: `/Users/brianvassell/DND-cli/docs/online-local.md`
-- Docker: `/Users/brianvassell/DND-cli/docs/online-deploy.md`
+- No Docker: `/path/to/project/docs/online-local.md`
+- Docker: `/path/to/project/docs/online-deploy.md`
 
 ## Online host/join (legacy LAN mode)
 
@@ -245,15 +245,15 @@ Notes:
 
 ## Roadmap
 
-- Track current status and upcoming phases in `/Users/brianvassell/DND-cli/docs/roadmap.md`.
-- Online systems spec draft is in `/Users/brianvassell/DND-cli/docs/online-roadmap.md`.
+- Track current status and upcoming phases in `/path/to/project/docs/roadmap.md`.
+- Online systems spec draft is in `/path/to/project/docs/online-roadmap.md`.
 
 ## Documentation
 
-- Installation guide: `/Users/brianvassell/DND-cli/docs/installation.md`
-- Homebrew distribution guide: `/Users/brianvassell/DND-cli/docs/homebrew.md`
-- Full game guide: `/Users/brianvassell/DND-cli/docs/game-manual.md`
-- Project roadmap: `/Users/brianvassell/DND-cli/docs/roadmap.md`
-- Online systems roadmap: `/Users/brianvassell/DND-cli/docs/online-roadmap.md`
-- Online local (no Docker) guide: `/Users/brianvassell/DND-cli/docs/online-local.md`
-- Online deployment guide: `/Users/brianvassell/DND-cli/docs/online-deploy.md`
+- Installation guide: `/path/to/project/docs/installation.md`
+- Homebrew distribution guide: `/path/to/project/docs/homebrew.md`
+- Full game guide: `/path/to/project/docs/game-manual.md`
+- Project roadmap: `/path/to/project/docs/roadmap.md`
+- Online systems roadmap: `/path/to/project/docs/online-roadmap.md`
+- Online local (no Docker) guide: `/path/to/project/docs/online-local.md`
+- Online deployment guide: `/path/to/project/docs/online-deploy.md`

@@ -57,10 +57,10 @@ python -m build
 
 ## 3) Generate the formula file
 
-From this repo (`/Users/brianvassell/DND-cli`), generate `Formula/dnd.rb` for your tap:
+From this repo (`/path/to/project`), generate `Formula/dnd.rb` for your tap:
 
 ```bash
-python3 /Users/brianvassell/DND-cli/scripts/make_homebrew_formula.py \
+python3 /path/to/project/scripts/make_homebrew_formula.py \
   --org VF-AdminOver \
   --repo Crpyt-Clash \
   --tag v0.1.0 \

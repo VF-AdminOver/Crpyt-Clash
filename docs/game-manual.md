@@ -5,7 +5,7 @@ This guide covers how to install, start, play, and troubleshoot the game.
 ## 1) Install & Launch
 
 ```bash
-cd /Users/brianvassell/DND-cli
+cd /path/to/project
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -e .
@@ -172,7 +172,7 @@ Turn flow:
 ### `command not found`
 
 ```bash
-cd /Users/brianvassell/DND-cli
+cd /path/to/project
 source .venv/bin/activate
 pip install -e .
 ```
@@ -190,5 +190,5 @@ pip install -e .
 
 ## 12) Related Docs
 
-- Product roadmap: `/Users/brianvassell/DND-cli/docs/roadmap.md`
-- Online systems roadmap: `/Users/brianvassell/DND-cli/docs/online-roadmap.md`
+- Product roadmap: `/path/to/project/docs/roadmap.md`
+- Online systems roadmap: `/path/to/project/docs/online-roadmap.md`

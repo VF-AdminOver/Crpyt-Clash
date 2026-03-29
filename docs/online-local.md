@@ -7,7 +7,7 @@ Run the MMO-lite server directly on your machine with Python and a local databas
 ## Install
 
 ```bash
-cd /Users/brianvassell/DND-cli
+cd /path/to/project
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -e ".[server,online]"
@@ -55,7 +55,7 @@ cryptclash server --host 0.0.0.0 --port 8000
 In another terminal:
 
 ```bash
-cd /Users/brianvassell/DND-cli
+cd /path/to/project
 source .venv/bin/activate
 cryptclash register --server http://127.0.0.1:8000 --username iris
 cryptclash character create --name Iris --archetype Mage

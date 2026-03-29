@@ -19,7 +19,7 @@ cryptclash
 
 ## Homebrew tap install (best UX once you publish a tap)
 
-After you publish a Homebrew tap (see `/Users/brianvassell/DND-cli/docs/homebrew-tap.md`), players can run:
+After you publish a Homebrew tap (see `/path/to/project/docs/homebrew-tap.md`), players can run:
 
 ```bash
 brew tap VF-AdminOver/games
@@ -45,8 +45,8 @@ cryptclash
 ## 1) Clone the repo
 
 ```bash
-git clone <your-repo-url> /Users/brianvassell/DND-cli
-cd /Users/brianvassell/DND-cli
+git clone <your-repo-url> /path/to/project
+cd /path/to/project
 ```
 
 ## 2) Create and activate a virtual environment
@@ -80,8 +80,8 @@ DND
 Run:
 
 ```bash
-source /Users/brianvassell/DND-cli/.venv/bin/activate
-pip install -e /Users/brianvassell/DND-cli
+source /path/to/project/.venv/bin/activate
+pip install -e /path/to/project
 ```
 
 Then try:
@@ -95,7 +95,7 @@ cryptclash
 Add this to `~/.zshrc`:
 
 ```bash
-alias cryptclash='source /Users/brianvassell/DND-cli/.venv/bin/activate && cryptclash'
+alias cryptclash='source /path/to/project/.venv/bin/activate && cryptclash'
 ```
 
 Then reload shell config:

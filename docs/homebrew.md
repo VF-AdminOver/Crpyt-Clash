@@ -44,7 +44,7 @@ cryptclash
 
 For end-to-end setup, follow:
 
-- `/Users/brianvassell/DND-cli/docs/homebrew-tap.md`
+- `/path/to/project/docs/homebrew-tap.md`
 
 ## 1) Build release artifacts (optional)
 
@@ -66,7 +66,7 @@ File path in tap repo:
 If you want the sha256 computed automatically, use:
 
 ```bash
-python3 /Users/brianvassell/DND-cli/scripts/make_homebrew_formula.py --org <ORG> --repo <REPO> --tag v0.2.0 --formula-name dnd --out Formula/dnd.rb
+python3 /path/to/project/scripts/make_homebrew_formula.py --org <ORG> --repo <REPO> --tag v0.2.0 --formula-name dnd --out Formula/dnd.rb
 ```
 
 Important: Homebrew does not automatically install `pyproject.toml` dependencies into the virtualenv. You must vendor
